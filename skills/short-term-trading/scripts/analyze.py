@@ -46,13 +46,56 @@ def parse_args():
     p.add_argument("--provider", default="", help="LLM 厂商 openai/claude/deepseek（覆盖 .env）")
     p.add_argument("--model", default="", help="模型名（覆盖 .env）")
     p.add_argument("--mock", action="store_true", help="模拟模式，用本地随机行情，无需 API")
+    p.add_argument("--loop", action="store_true",
+                   help="轮询模式：每隔 --interval 分钟跑一次分析（默认 5 分钟）")
+    p.add_argument("--interval", type=float, default=config.POLL_INTERVAL_MIN,
+                   help=f"轮询间隔（分钟），默认 {config.POLL_INTERVAL_MIN:.0f}")
     p.add_argument("--confirm-order", action="store_true",
-                   help="真实下单（高危，需 OKX API Key 且用户明确授权）")
+                   help="真实下单（高危，需 OKX API Key 且用户明确授权；轮询模式下不自动下单）")
     return p.parse_args()
+
+
+def run_once(args, client, fetcher, strategy):
+    decision = strategy.decide(fetcher=fetcher)
+    price = float(client.fetch_ticker().get("last", 0))
+    print(render_report(decision, config.SYMBOL, price, config.TIMEFRAME, args.mock))
+    print("-" * 50)
+
+    # 下单逻辑（安全边界）：轮询模式下绝不自动下单，仅单次 --confirm-order 生效
+    if args.confirm_order and not args.loop:
+        if decision.get("decision") in ("open_long", "open_short"):
+            side = "buy" if decision["decision"] == "open_long" else "sell"
+            if args.mock:
+                print("[!] 模拟模式下 --confirm-order 不会真实下单（仅打印）。")
+            if not config.OKX_API_KEY:
+                print("[!] 无 OKX_API_KEY，无法真实下单。")
+                return
+            print(f"[*] 真实下单: {side} {config.SINGLE_TRADE_SIZE} {config.SYMBOL}")
+            ok = input("  确认真实下单? 输入 YES 继续: ").strip().upper()
+            if ok == "YES":
+                client.create_market_order(side, config.SINGLE_TRADE_SIZE)
+                strategy.record_open(decision, price)
+                print("[*] 已下单并记入本地记忆。")
+            else:
+                print("[*] 已取消下单。")
+        elif decision.get("decision") in ("close", "reduce") and strategy.current_position:
+            side = "sell" if strategy.current_position.action == "open_long" else "buy"
+            ok = input(f"  确认平仓({side})? 输入 YES 继续: ").strip().upper()
+            if ok == "YES":
+                client.create_market_order(side, config.SINGLE_TRADE_SIZE)
+                strategy.record_exit(price)
+                print("[*] 已平仓。")
+    elif args.confirm_order and args.loop:
+        print("[*] 轮询模式下不自动下单，信号仅供参考；请另开终端或手动操作。")
+    else:
+        print("[*] 未加 --confirm-order，跳过下单。信号仅供参考。")
 
 
 def main():
     args = parse_args()
+
+    if args.loop:
+        config.POLL_INTERVAL_MIN = args.interval
 
     config.apply_cli(symbol=args.symbol, timeframe=args.timeframe,
                      aux=args.aux, macro4h=args.macro4h, macro1d=args.macro1d)
@@ -64,6 +107,8 @@ def main():
     print(f"[*] 模式: {'模拟(mock)' if args.mock else '真实'} | "
           f"交易对: {config.SYMBOL} | 主周期: {config.TIMEFRAME}")
     print(f"[*] LLM: {config.LLM_PROVIDER} / {config.LLM_MODEL}")
+    if args.loop:
+        print(f"[*] 轮询模式: 每 {config.POLL_INTERVAL_MIN:.0f} 分钟分析一次 (Ctrl+C 退出)")
 
     if not args.mock:
         if not config.OKX_API_KEY:
@@ -83,44 +128,30 @@ def main():
         from src.llm.provider import create_llm_client
         strategy.client = FakeLLM()
 
+    if not args.loop:
+        try:
+            run_once(args, client, fetcher, strategy)
+        except Exception as e:
+            print(f"[!] 决策过程出错: {e}")
+            sys.exit(1)
+        return
+
+    # ---- 轮询模式 ----
+    import time
+    round_no = 0
     try:
-        decision = strategy.decide(fetcher=fetcher)
-    except Exception as e:
-        print(f"[!] 决策过程出错: {e}")
-        sys.exit(1)
-
-    price = float(client.fetch_ticker().get("last", 0))
-    print(render_report(decision, config.SYMBOL, price, config.TIMEFRAME, args.mock))
-
-    # ---- 下单逻辑（安全边界）----
-    if decision.get("decision") in ("open_long", "open_short"):
-        side = "buy" if decision["decision"] == "open_long" else "sell"
-        if args.confirm_order:
-            if args.mock:
-                print("[!] 模拟模式下 --confirm-order 不会真实下单（仅打印）。")
-            if not config.OKX_API_KEY:
-                print("[!] 无 OKX_API_KEY，无法真实下单。")
-                sys.exit(1)
-            print(f"[*] 真实下单: {side} {config.SINGLE_TRADE_SIZE} {config.SYMBOL}")
-            ok = input("  确认真实下单? 输入 YES 继续: ").strip().upper()
-            if ok == "YES":
-                client.create_market_order(side, config.SINGLE_TRADE_SIZE)
-                strategy.record_open(decision, price)
-                print("[*] 已下单并记入本地记忆。")
-            else:
-                print("[*] 已取消下单。")
-        else:
-            print("[*] 未加 --confirm-order，跳过下单。信号仅供参考。")
-    elif decision.get("decision") in ("close", "reduce") and strategy.current_position:
-        if args.confirm_order and not args.mock and config.OKX_API_KEY:
-            side = "sell" if strategy.current_position.action == "open_long" else "buy"
-            ok = input(f"  确认平仓({side})? 输入 YES 继续: ").strip().upper()
-            if ok == "YES":
-                client.create_market_order(side, config.SINGLE_TRADE_SIZE)
-                strategy.record_exit(price)
-                print("[*] 已平仓。")
-        else:
-            print("[*] 持仓管理信号（close/reduce）仅建议，未执行。")
+        while True:
+            round_no += 1
+            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n[{ts}] ===== 第 {round_no} 轮分析 =====")
+            try:
+                run_once(args, client, fetcher, strategy)
+            except Exception as e:
+                print(f"[!] 本轮出错: {e}")
+            print(f"[*] 休眠 {config.POLL_INTERVAL_MIN:.0f} 分钟... (Ctrl+C 退出)")
+            time.sleep(config.POLL_INTERVAL_MIN * 60)
+    except KeyboardInterrupt:
+        print("\n[*] 已收到退出信号，轮询结束。")
 
 
 if __name__ == "__main__":

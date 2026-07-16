@@ -32,6 +32,9 @@ class Config:
     GATEKEEPER_ATR_MIN = float(os.getenv("GATEKEEPER_ATR_MIN", "100"))
     GATEKEEPER_SWING_MIN = float(os.getenv("GATEKEEPER_SWING_MIN", "150"))
 
+    # --- 轮询（--loop 模式）---
+    POLL_INTERVAL_MIN = float(os.getenv("POLL_INTERVAL_MIN", "5"))
+
     # --- LLM ---
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
     LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")

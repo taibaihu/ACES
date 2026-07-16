@@ -48,6 +48,12 @@ python scripts/analyze.py --symbol ETH-USDT --timeframe 15m
 
 # 3) 生成信号后，手动确认才真实下单（高危，需用户明确授权）
 python scripts/analyze.py --symbol BTC-USDT --confirm-order
+
+# 4) 轮询模式：每隔 5 分钟自动分析一次（默认间隔，Ctrl+C 退出）
+python scripts/analyze.py --symbol BTC-USDT --loop
+
+#    自定义轮询间隔（例如每 10 分钟）
+python scripts/analyze.py --symbol BTC-USDT --loop --interval 10
 ```
 
 ## 参数
@@ -60,7 +66,9 @@ python scripts/analyze.py --symbol BTC-USDT --confirm-order
 | `--macro4h` | 4h | 宏观周期 1 |
 | `--macro1d` | 1d | 宏观周期 2 |
 | `--mock` | 关 | 模拟模式 |
-| `--confirm-order` | 关 | 真实下单（需 API + 用户授权） |
+| `--loop` | 关 | 轮询模式：每隔 --interval 分钟自动分析一次（默认 5 分钟，Ctrl+C 退出） |
+| `--interval` | 5 | 轮询间隔（分钟） |
+| `--confirm-order` | 关 | 真实下单（需 API + 用户授权；轮询模式下不自动下单） |
 | `--provider` | 见 .env | LLM 厂商 openai/claude/deepseek |
 | `--model` | 见 .env | 模型名 |
 

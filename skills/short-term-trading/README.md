@@ -59,7 +59,9 @@ python scripts/analyze.py --symbol BTC-USDT --confirm-order
 | `--provider` | openai | LLM 厂商 |
 | `--model` | gpt-4o | 模型名 |
 | `--mock` | 关 | 模拟模式 |
-| `--confirm-order` | 关 | 真实下单（需授权） |
+| `--loop` | 关 | 轮询模式：每隔 `--interval` 分钟自动分析一次（默认 5 分钟，Ctrl+C 退出） |
+| `--interval` | 5 | 轮询间隔（分钟） |
+| `--confirm-order` | 关 | 真实下单（需授权；轮询模式下不自动下单） |
 
 ## 决策逻辑
 
