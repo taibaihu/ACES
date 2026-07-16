@@ -52,8 +52,8 @@ python scripts/analyze.py --symbol BTC-USDT --confirm-order
 | 参数 | 默认 | 说明 |
 |------|------|------|
 | `--symbol` | BTC-USDT | 交易对 |
-| `--timeframe/--tf` | 5m | 主周期 |
-| `--aux` | 15m | 辅助周期 |
+| `--timeframe/--tf` | 15m | 主周期（15m 噪音小、止损被扫概率低、手续费占比小） |
+| `--aux` | 1h | 辅助周期（方向确认） |
 | `--macro4h` | 4h | 宏观周期 1 |
 | `--macro1d` | 1d | 宏观周期 2 |
 | `--provider` | openai | LLM 厂商 |
@@ -63,7 +63,7 @@ python scripts/analyze.py --symbol BTC-USDT --confirm-order
 
 ## 决策逻辑
 
-1. **多周期特征**：5m（主）+ 15m + 4h/1d，含 EMA/RSI/MACD/布林/ATR/KDJ
+1. **多周期特征**：15m（主）+ 1h（辅助）+ 4h/1d（宏观过滤），含 EMA/RSI/MACD/布林/ATR/KDJ
 2. **Gatekeeper 本地预筛**（省成本 + 防垃圾信号）：
    - 波动率一票否决：ATR < 阈值 或 近 12 根振幅 < 阈值 → 死鱼市拦截
    - RSI 极端硬约束（>=70 不开多 / <=30 不开空）

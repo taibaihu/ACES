@@ -13,9 +13,11 @@ class Config:
     OKX_PASSPHRASE = os.getenv("OKX_PASSPHRASE", "")
 
     # --- 交易对 / 周期（可被 CLI 参数覆盖）---
+    # 主周期用 15m：相比 5m 噪音更小、止损被扫概率更低、手续费占比更小。
+    # 辅助周期用 1h 做方向确认，4h/1d 仍作宏观过滤。
     SYMBOL = os.getenv("SYMBOL", "BTC-USDT")
-    TIMEFRAME = os.getenv("TIMEFRAME", "5m")
-    AUX_TIMEFRAME = os.getenv("AUX_TIMEFRAME", "15m")
+    TIMEFRAME = os.getenv("TIMEFRAME", "15m")
+    AUX_TIMEFRAME = os.getenv("AUX_TIMEFRAME", "1h")
     MACRO_TIMEFRAME_4H = os.getenv("MACRO_TIMEFRAME_4H", "4h")
     MACRO_TIMEFRAME_1D = os.getenv("MACRO_TIMEFRAME_1D", "1d")
 

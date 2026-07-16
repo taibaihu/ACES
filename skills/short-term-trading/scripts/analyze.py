@@ -33,14 +33,14 @@ class FakeLLM(LLMClient):
             return '{"decision":"hold","reason":"演示假LLM：趋势未破，继续持有观察","close_pct":0}'
         return ('{"decision":"open_long","direction":"long",'
                 '"sl_atr_multiplier":1.5,"tp_atr_multiplier":3.0,'
-                '"reason":"演示假LLM：5m EMA9上穿EMA21且斜率向上，量能配合，短线偏多，按ATR设止损止盈"}')
+                '"reason":"演示假LLM：15m EMA9上穿EMA21且斜率向上，量能配合，短线偏多，按ATR设止损止盈"}')
 
 
 def parse_args():
     p = argparse.ArgumentParser(description="短线交易 LLM 分析决策工具")
     p.add_argument("--symbol", default=config.SYMBOL, help="交易对，如 BTC-USDT")
-    p.add_argument("--timeframe", "--tf", dest="timeframe", default=config.TIMEFRAME, help="主周期，如 5m/15m")
-    p.add_argument("--aux", default=config.AUX_TIMEFRAME, help="辅助周期，如 15m")
+    p.add_argument("--timeframe", "--tf", dest="timeframe", default=config.TIMEFRAME, help="主周期，如 15m/1h")
+    p.add_argument("--aux", default=config.AUX_TIMEFRAME, help="辅助周期，如 1h")
     p.add_argument("--macro4h", default=config.MACRO_TIMEFRAME_4H, help="宏观周期 4h")
     p.add_argument("--macro1d", default=config.MACRO_TIMEFRAME_1D, help="宏观周期 1d")
     p.add_argument("--provider", default="", help="LLM 厂商 openai/claude/deepseek（覆盖 .env）")
